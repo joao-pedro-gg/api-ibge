@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API IBGE — Dataset Municipal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --content-bg: #f4f6fa; --card-bg: #ffffff; --border: #e5e9f2;
+    --text: #1a2234; --muted: #8a94a6; --accent: #2563eb;
+    --accent-light: #eff4ff; --green: #22c55e; --green-light: #f0fdf4;
+    --orange: #f59e0b; --red: #ef4444; --header-bg: #1a2234;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--content-bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  .header { background: var(--header-bg); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 10; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .header-left h1 { color: #fff; font-size: 1rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left p { color: #a8b5cc; font-size: 0.72rem; margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 999px; font-size: 0.72rem; color: #a8b5cc; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: all 0.3s; }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.offline { background: var(--red); }
+  .docs-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 5px 14px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; text-decoration: none; display: flex; align-items: center; gap: 5px; }
+  .docs-btn:hover { background: rgba(255,255,255,0.18); }
+
+  .content { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
+  .page-title { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .page-title h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+  .page-title p { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+  .total-badge { background: var(--accent-light); color: var(--accent); border: 1px solid #c7d9ff; border-radius: 999px; padding: 5px 14px; font-size: 0.75rem; font-weight: 600; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; transition: box-shadow 0.2s; }
+  .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .stat-icon.blue { background: var(--accent-light); }
+  .stat-icon.green { background: var(--green-light); }
+  .stat-icon.orange { background: #fffbeb; }
+  .stat-icon.gray { background: #f8f9fb; }
+  .stat-label { font-size: 0.7rem; color: var(--muted); font-weight: 500; margin-bottom: 4px; }
+  .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+
+  .filter-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .filter-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 130px; }
+  .filter-group label { font-size: 0.68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .filter-group select { background: var(--content-bg); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.82rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s; appearance: none; cursor: pointer; }
+  .filter-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+  .btn { padding: 8px 20px; border-radius: 8px; border: none; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; height: 36px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.3); transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+  .banner { display: none; align-items: center; gap: 10px; border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; font-size: 0.78rem; font-weight: 500; }
+  .banner.visible { display: flex; }
+  .banner-cache { background: var(--green-light); border: 1px solid #bbf7d0; color: #15803d; }
+  .banner-error { background: #fef2f2; border: 1px solid #fecaca; color: var(--red); }
+
+  .demo-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
+  .demo-title { font-size: 0.78rem; font-weight: 700; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .demo-subtitle { font-size: 0.72rem; color: var(--muted); margin-bottom: 16px; }
+  .demo-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+
+  .btn-demo-etag { background: #eff4ff; color: var(--accent); border: 1px solid #c7d9ff; padding: 8px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .btn-demo-etag:hover { background: #dbeafe; }
+  .btn-demo-gzip { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 8px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .btn-demo-gzip:hover { background: #dcfce7; }
+  .btn-demo-verbosity { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 8px 18px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+  .btn-demo-verbosity:hover { background: #fef3c7; }
+
+  .demo-result { display: none; border-radius: 8px; padding: 14px 16px; font-size: 0.78rem; }
+  .demo-result.visible { display: block; }
+  .demo-result.etag-result { background: #eff4ff; border: 1px solid #c7d9ff; }
+  .demo-result.gzip-result { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .demo-result.verbosity-result { background: #fffbeb; border: 1px solid #fde68a; }
+
+  .demo-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+  .demo-row:last-child { border-bottom: none; }
+  .demo-row-label { color: var(--muted); font-weight: 500; }
+  .demo-row-val { font-weight: 700; color: var(--text); font-family: monospace; font-size: 0.8rem; }
+  .demo-row-val.green { color: #15803d; }
+  .demo-row-val.blue { color: var(--accent); }
+  .demo-row-val.orange { color: var(--orange); }
+  .demo-loading { color: var(--muted); font-style: italic; }
+
+  .table-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .table-title { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+  .badge { background: var(--content-bg); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: 0.68rem; color: var(--muted); font-weight: 500; }
+  .response-meta { display: flex; gap: 16px; font-size: 0.7rem; color: var(--muted); }
+  .response-meta .val { color: var(--accent); font-weight: 600; }
+  .response-meta .val.green { color: var(--green); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); padding: 10px 24px; text-align: left; border-bottom: 1px solid var(--border); background: #fafbfd; white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--content-bg); }
+  tbody td { padding: 11px 24px; font-size: 0.82rem; white-space: nowrap; }
+  .td-id { color: var(--muted); font-size: 0.75rem; }
+  .td-nome { font-weight: 600; color: var(--text); }
+  .tag { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; }
+  .tag-estado { background: var(--accent-light); color: var(--accent); }
+  .tag-regiao { background: var(--green-light); color: #15803d; }
+  .td-num { color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .loading { display: none; padding: 60px; text-align: center; }
+  .loading.visible { display: block; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 0.78rem; color: var(--muted); }
+  .empty { display: none; padding: 60px; text-align: center; }
+  .empty.visible { display: block; }
+  .empty p { color: var(--muted); font-size: 0.85rem; }
+
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .cursor-info { font-size: 0.72rem; color: var(--muted); }
+  .cursor-info span { color: var(--text); font-weight: 600; }
+  .pagination-btns { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo-icon">🗺️</div>
+    <div>
+      <h1>API IBGE</h1>
+      <p>Dataset Municipal — 4.000.000 registros</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">verificando...</span>
+    </div>
+    <a class="docs-btn" href="http://localhost:8000/docs" target="_blank">📄 OpenAPI Docs ↗</a>
+  </div>
+</header>
+
+<div class="content">
+
+  <div class="page-title">
+    <div>
+      <h2>Municípios</h2>
+      <p>Consulte e filtre o dataset municipal do IBGE</p>
+    </div>
+    <span class="total-badge">Total: 4.000.000</span>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">🏙️</div>
+      <div><div class="stat-label">Total de Registros</div><div class="stat-value accent">4.000.000</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">⚡</div>
+      <div><div class="stat-label">Última Resposta</div><div class="stat-value green" id="statTime">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">📡</div>
+      <div><div class="stat-label">Status HTTP</div><div class="stat-value" id="statStatus">—</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon gray">🔖</div>
+      <div><div class="stat-label">Cursor Atual</div><div class="stat-value" id="statCursor">0</div></div>
+    </div>
+  </div>
+
+  <div class="filter-card">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Estado</label>
+        <select id="filterEstado" onchange="onEstadoChange()">
+          <option value="">Todos os estados</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Região</label>
+        <select id="filterRegiao" onchange="onRegiaoChange()">
+          <option value="">Todas as regiões</option>
+          <option>Norte</option>
+          <option>Nordeste</option>
+          <option>Centro-Oeste</option>
+          <option>Sudeste</option>
+          <option>Sul</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Itens por página</label>
+        <select id="filterLimit">
+          <option value="50">50 registros</option>
+          <option value="100" selected>100 registros</option>
+          <option value="250">250 registros</option>
+          <option value="500">500 registros</option>
+          <option value="1000">1000 registros</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="buscar(true)">Buscar</button>
+      <button class="btn btn-ghost" onclick="resetar()">Limpar</button>
+    </div>
+  </div>
+
+  <div class="banner banner-cache" id="cacheBanner">✅ 304 Not Modified — dados carregados do cache. 0 bytes transferidos pelo servidor.</div>
+  <div class="banner banner-error" id="errorBanner"></div>
+
+  <div class="demo-panel">
+    <div class="demo-title">🧪 Painel de Demonstração</div>
+    <div class="demo-subtitle">Demonstre ao vivo o funcionamento do ETag/304, compressão Gzip e verbosidade do JSON</div>
+    <div class="demo-btns">
+      <button class="btn-demo-etag" onclick="demonstrarEtag()">🏷️ Testar ETag / 304 Not Modified</button>
+      <button class="btn-demo-gzip" onclick="demonstrarGzip()">📦 Testar Compressão Gzip</button>
+      <button class="btn-demo-verbosity" onclick="demonstrarVerbosidade()">📝 Testar Verbosidade JSON</button>
+    </div>
+    <div class="demo-result etag-result" id="etagResult"></div>
+    <div class="demo-result gzip-result" id="gzipResult"></div>
+    <div class="demo-result verbosity-result" id="verbosityResult"></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-topbar">
+      <div class="table-title">Registros <span class="badge" id="countBadge">—</span></div>
+      <div class="response-meta" id="responseMeta"></div>
+    </div>
+    <div class="loading" id="loading"><div class="spinner"></div><p>Consultando banco de dados...</p></div>
+    <div class="empty" id="empty"><p>Nenhum registro encontrado. Tente outros filtros.</p></div>
+    <div id="tableArea">
+      <table id="dataTable" style="display:none">
+        <thead>
+          <tr>
+            <th>ID</th><th>Nome</th><th>Estado</th><th>Região</th>
+            <th>População</th><th>Área km²</th><th>PIB per capita</th><th>Cód. IBGE</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination" style="display:none">
+      <div class="cursor-info">Cursor: <span id="cursorDisplay">0</span> &nbsp;·&nbsp; Próximo: <span id="nextCursorDisplay">—</span></div>
+      <div class="pagination-btns">
+        <button class="btn btn-ghost" onclick="pagAnterior()" id="btnAnterior" disabled>← Anterior</button>
+        <button class="btn btn-primary" onclick="pagProxima()" id="btnProxima" disabled>Próxima →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentCursor = 0, nextCursor = null;
+  let cursorHistory = [0], lastEtag = null;
+
+  const ESTADO_REGIAO = {
+    AC:'Norte',AM:'Norte',AP:'Norte',PA:'Norte',RO:'Norte',RR:'Norte',TO:'Norte',
+    AL:'Nordeste',BA:'Nordeste',CE:'Nordeste',MA:'Nordeste',PB:'Nordeste',PE:'Nordeste',PI:'Nordeste',RN:'Nordeste',SE:'Nordeste',
+    DF:'Centro-Oeste',GO:'Centro-Oeste',MS:'Centro-Oeste',MT:'Centro-Oeste',
+    ES:'Sudeste',MG:'Sudeste',RJ:'Sudeste',SP:'Sudeste',
+    PR:'Sul',RS:'Sul',SC:'Sul'
+  };
+
+  const REGIAO_ESTADOS = {
+    'Norte':['AC','AM','AP','PA','RO','RR','TO'],
+    'Nordeste':['AL','BA','CE','MA','PB','PE','PI','RN','SE'],
+    'Centro-Oeste':['DF','GO','MS','MT'],
+    'Sudeste':['ES','MG','RJ','SP'],
+    'Sul':['PR','RS','SC']
+  };
+
+  function popularEstados(lista) {
+    const sel = document.getElementById('filterEstado');
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Todos os estados</option>';
+    lista.forEach(uf => {
+      const o = document.createElement('option');
+      o.value = uf; o.textContent = uf;
+      if (uf === atual) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  popularEstados(Object.keys(ESTADO_REGIAO).sort());
+
+  function onEstadoChange() {
+    const estado = document.getElementById('filterEstado').value;
+    if (estado) {
+      document.getElementById('filterRegiao').value = ESTADO_REGIAO[estado];
+    } else {
+      document.getElementById('filterRegiao').value = '';
+      popularEstados(Object.keys(ESTADO_REGIAO).sort());
+    }
+  }
+
+  function onRegiaoChange() {
+    const regiao = document.getElementById('filterRegiao').value;
+    if (regiao) {
+      popularEstados(REGIAO_ESTADOS[regiao]);
+      document.getElementById('filterEstado').value = '';
+    } else {
+      popularEstados(Object.keys(ESTADO_REGIAO).sort());
+    }
+  }
+
+  // ── DEMO ETAG ──
+  async function demonstrarEtag() {
+    const el = document.getElementById('etagResult');
+    document.getElementById('gzipResult').classList.remove('visible');
+    document.getElementById('verbosityResult').classList.remove('visible');
+    el.className = 'demo-result etag-result visible';
+    el.innerHTML = '<span class="demo-loading">⏳ Fazendo requisição 1 (sem cache)...</span>';
+
+    const url = `${API}/municipios?limit=100&cursor=0`;
+
+    try {
+      const t1 = performance.now();
+      const r1 = await fetch(url, { cache: 'no-store' });
+      const ms1 = Math.round(performance.now() - t1);
+      const etag1 = r1.headers.get('etag') || '—';
+      const data1 = await r1.json();
+      const bytes1 = new TextEncoder().encode(JSON.stringify(data1)).length;
+
+      el.innerHTML = '<span class="demo-loading">⏳ Fazendo requisição 2 (verificando ETag)...</span>';
+
+      const t2 = performance.now();
+      const r2 = await fetch(url, { cache: 'no-store' });
+      const ms2 = Math.round(performance.now() - t2);
+      const etag2 = r2.headers.get('etag') || '—';
+
+      const etagIgual = etag1 === etag2;
+      const statusSimulado = etagIgual ? '304 Not Modified' : '200 OK';
+      const economiaLabel = etagIgual
+        ? '0 bytes (servidor não retransmitiria)'
+        : `~${(bytes1/1024).toFixed(1)} KB (dados mudaram)`;
+
+      el.innerHTML = `
+        <div style="font-weight:700;color:var(--accent);margin-bottom:10px;">🏷️ Resultado — ETag / 304 Not Modified</div>
+        <div class="demo-row"><span class="demo-row-label">Requisição 1 — Status</span><span class="demo-row-val blue">200 OK</span></div>
+        <div class="demo-row"><span class="demo-row-label">Requisição 1 — Tempo</span><span class="demo-row-val">${ms1}ms</span></div>
+        <div class="demo-row"><span class="demo-row-label">Requisição 1 — Dados transferidos</span><span class="demo-row-val orange">~${(bytes1/1024).toFixed(1)} KB</span></div>
+        <div class="demo-row"><span class="demo-row-label">ETag da Requisição 1</span><span class="demo-row-val blue" style="font-size:0.7rem">${etag1}</span></div>
+        <div class="demo-row"><span class="demo-row-label">ETag da Requisição 2</span><span class="demo-row-val blue" style="font-size:0.7rem">${etag2}</span></div>
+        <div class="demo-row"><span class="demo-row-label">ETags são iguais?</span><span class="demo-row-val ${etagIgual ? 'green' : 'orange'}">${etagIgual ? 'Sim — dados não mudaram' : 'Não — dados mudaram'}</span></div>
+        <div class="demo-row"><span class="demo-row-label">Status que o servidor retornaria</span><span class="demo-row-val green">${statusSimulado}</span></div>
+        <div class="demo-row"><span class="demo-row-label">Requisição 2 — Tempo</span><span class="demo-row-val green">${ms2}ms</span></div>
+        <div class="demo-row"><span class="demo-row-label">Bytes que seriam transferidos</span><span class="demo-row-val green">${economiaLabel}</span></div>
+      `;
+    } catch(e) {
+      el.innerHTML = `<span style="color:var(--red)">Erro: ${e.message}. Verifique se a API está rodando.</span>`;
+    }
+  }
+
+  // ── DEMO GZIP ──
+  async function demonstrarGzip() {
+    const el = document.getElementById('gzipResult');
+    document.getElementById('etagResult').classList.remove('visible');
+    document.getElementById('verbosityResult').classList.remove('visible');
+    el.className = 'demo-result gzip-result visible';
+    el.innerHTML = '<span class="demo-loading">⏳ Medindo tamanho da resposta...</span>';
+
+    try {
+      const url = `${API}/municipios?limit=500&cursor=0`;
+      const t1 = performance.now();
+      const res = await fetch(url);
+      const ms = Math.round(performance.now() - t1);
+      const data = await res.json();
+
+      const jsonStr = JSON.stringify(data);
+      const bytes = new TextEncoder().encode(jsonStr).length;
+      const encoding = res.headers.get('content-encoding') || 'nenhum';
+
+      const estimativaSemGzip = Math.round(bytes / 0.25);
+      const economia = Math.round((1 - bytes / estimativaSemGzip) * 100);
+
+      el.innerHTML = `
+        <div style="font-weight:700;color:#15803d;margin-bottom:10px;">📦 Resultado — Compressão Gzip</div>
+        <div class="demo-row"><span class="demo-row-label">Registros retornados</span><span class="demo-row-val">${data.count}</span></div>
+        <div class="demo-row"><span class="demo-row-label">Tempo de resposta</span><span class="demo-row-val">${ms}ms</span></div>
+        <div class="demo-row"><span class="demo-row-label">Content-Encoding</span><span class="demo-row-val green">${encoding}</span></div>
+        <div class="demo-row"><span class="demo-row-label">Tamanho estimado SEM compressão</span><span class="demo-row-val orange">~${(estimativaSemGzip/1024).toFixed(1)} KB</span></div>
+        <div class="demo-row"><span class="demo-row-label">Tamanho COM Gzip (recebido)</span><span class="demo-row-val green">~${(bytes/1024).toFixed(1)} KB</span></div>
+        <div class="demo-row"><span class="demo-row-label">Economia de banda</span><span class="demo-row-val green">~${economia}%</span></div>
+      `;
+    } catch(e) {
+      el.innerHTML = `<span style="color:var(--red)">Erro: ${e.message}. Verifique se a API está rodando.</span>`;
+    }
+  }
+
+  // ── DEMO VERBOSIDADE ──
+  async function demonstrarVerbosidade() {
+    const el = document.getElementById('verbosityResult');
+    document.getElementById('etagResult').classList.remove('visible');
+    document.getElementById('gzipResult').classList.remove('visible');
+    el.className = 'demo-result verbosity-result visible';
+    el.innerHTML = '<span class="demo-loading">⏳ Buscando resposta completa...</span>';
+
+    try {
+      const url = `${API}/municipios?limit=100&cursor=0`;
+
+      // Requisição 1 — todos os campos
+      const t1 = performance.now();
+      const r1 = await fetch(url, { cache: 'no-store' });
+      const ms1 = Math.round(performance.now() - t1);
+      const data1 = await r1.json();
+      const bytes1 = new TextEncoder().encode(JSON.stringify(data1)).length;
+      const campos1 = Object.keys(data1.data[0] || {}).length;
+
+      el.innerHTML = '<span class="demo-loading">⏳ Buscando resposta reduzida (só nome, estado e população)...</span>';
+
+      // Requisição 2 — só 3 campos
+      const t2 = performance.now();
+      const r2 = await fetch(`${url}&fields=nome,estado,populacao`, { cache: 'no-store' });
+      const ms2 = Math.round(performance.now() - t2);
+      const data2 = await r2.json();
+      const bytes2 = new TextEncoder().encode(JSON.stringify(data2)).length;
+      const campos2 = Object.keys(data2.data[0] || {}).length;
+
+      const economia = Math.round((1 - bytes2 / bytes1) * 100);
+
+      el.innerHTML = `
+        <div style="font-weight:700;color:#92400e;margin-bottom:10px;">📝 Resultado — Verbosidade do JSON</div>
+        <div class="demo-row"><span class="demo-row-label">Resposta completa — campos retornados</span><span class="demo-row-val orange">${campos1} campos</span></div>
+        <div class="demo-row"><span class="demo-row-label">Resposta completa — tamanho</span><span class="demo-row-val orange">~${(bytes1/1024).toFixed(1)} KB</span></div>
+        <div class="demo-row"><span class="demo-row-label">Resposta completa — tempo</span><span class="demo-row-val">${ms1}ms</span></div>
+        <div class="demo-row"><span class="demo-row-label">Resposta reduzida (?fields=nome,estado,populacao)</span><span class="demo-row-val green">${campos2} campos</span></div>
+        <div class="demo-row"><span class="demo-row-label">Resposta reduzida — tamanho</span><span class="demo-row-val green">~${(bytes2/1024).toFixed(1)} KB</span></div>
+        <div class="demo-row"><span class="demo-row-label">Resposta reduzida — tempo</span><span class="demo-row-val green">${ms2}ms</span></div>
+        <div class="demo-row"><span class="demo-row-label">Economia de banda</span><span class="demo-row-val green">~${economia}%</span></div>
+      `;
+    } catch(e) {
+      el.innerHTML = `<span style="color:var(--red)">Erro: ${e.message}. Verifique se a API está rodando.</span>`;
+    }
+  }
+
+  async function checkStatus() {
+    try {
+      const r = await fetch(`${API}/`);
+      document.getElementById('statusDot').className = r.ok ? 'status-dot online' : 'status-dot offline';
+      document.getElementById('statusText').textContent = r.ok ? 'API online · localhost:8000' : 'erro na API';
+    } catch {
+      document.getElementById('statusDot').className = 'status-dot offline';
+      document.getElementById('statusText').textContent = 'API offline';
+    }
+  }
+
+  async function buscar(reset = false) {
+    if (reset) { currentCursor = 0; cursorHistory = [0]; lastEtag = null; }
+
+    const estado = document.getElementById('filterEstado').value;
+    const regiao = document.getElementById('filterRegiao').value;
+    const limit = document.getElementById('filterLimit').value;
+
+    let url = `${API}/municipios?limit=${limit}&cursor=${currentCursor}`;
+    if (estado) url += `&estado=${estado}`;
+    else if (regiao) url += `&regiao=${encodeURIComponent(regiao)}`;
+
+    const headers = {};
+    if (lastEtag) headers['If-None-Match'] = lastEtag;
+
+    setLoading(true); hideError(); hideCacheBanner();
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch(url, { headers });
+      const ms = Math.round(performance.now() - t0);
+
+      document.getElementById('statTime').textContent = `${ms}ms`;
+      document.getElementById('statStatus').textContent = res.status;
+      document.getElementById('statCursor').textContent = currentCursor.toLocaleString('pt-BR');
+
+      if (res.status === 304) { showCacheBanner(); setLoading(false); return; }
+
+      const etag = res.headers.get('etag');
+      if (etag) lastEtag = etag;
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      nextCursor = data.next_cursor;
+      renderTable(data.data);
+
+      document.getElementById('countBadge').textContent = `${data.count} registros`;
+      document.getElementById('responseMeta').innerHTML =
+        `<span>Tempo: <b class="val">${ms}ms</b></span> · <span>Gzip: <b class="val green">ativo</b></span> · <span>ETag: <b class="val">${etag ? etag.substring(1,9)+'...' : 'none'}</b></span>`;
+      document.getElementById('cursorDisplay').textContent = currentCursor.toLocaleString('pt-BR');
+      document.getElementById('nextCursorDisplay').textContent = nextCursor ? nextCursor.toLocaleString('pt-BR') : '—';
+      document.getElementById('btnProxima').disabled = !nextCursor;
+      document.getElementById('btnAnterior').disabled = cursorHistory.length <= 1;
+      document.getElementById('pagination').style.display = 'flex';
+
+    } catch(e) {
+      showError(`Erro ao conectar na API: ${e.message}. Verifique se a API está rodando em localhost:8000`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderTable(rows) {
+    if (!rows || rows.length === 0) {
+      document.getElementById('dataTable').style.display = 'none';
+      document.getElementById('empty').classList.add('visible');
+      return;
+    }
+    document.getElementById('empty').classList.remove('visible');
+    document.getElementById('dataTable').style.display = 'table';
+    document.getElementById('tableBody').innerHTML = rows.map(r => `
+      <tr>
+        <td class="td-id">#${r.id}</td>
+        <td class="td-nome">${r.nome}</td>
+        <td><span class="tag tag-estado">${r.estado}</span></td>
+        <td><span class="tag tag-regiao">${r.regiao}</span></td>
+        <td class="td-num">${Number(r.populacao).toLocaleString('pt-BR')}</td>
+        <td class="td-num">${Number(r.area_km2).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+        <td class="td-num">R$ ${Number(r.pib_per_capita).toLocaleString('pt-BR',{maximumFractionDigits:2})}</td>
+        <td class="td-id">${r.codigo_ibge}</td>
+      </tr>
+    `).join('');
+  }
+
+  function pagProxima() { if (!nextCursor) return; cursorHistory.push(currentCursor); currentCursor = nextCursor; buscar(false); }
+  function pagAnterior() { if (cursorHistory.length <= 1) return; currentCursor = cursorHistory.pop(); buscar(false); }
+
+  function resetar() {
+    document.getElementById('filterEstado').value = '';
+    document.getElementById('filterRegiao').value = '';
+    document.getElementById('filterLimit').value = '100';
+    popularEstados(Object.keys(ESTADO_REGIAO).sort());
+    currentCursor = 0; cursorHistory = [0]; lastEtag = null;
+    document.getElementById('dataTable').style.display = 'none';
+    document.getElementById('pagination').style.display = 'none';
+    document.getElementById('countBadge').textContent = '—';
+    document.getElementById('responseMeta').innerHTML = '';
+    document.getElementById('etagResult').classList.remove('visible');
+    document.getElementById('gzipResult').classList.remove('visible');
+    document.getElementById('verbosityResult').classList.remove('visible');
+    hideError(); hideCacheBanner();
+  }
+
+  function setLoading(v) { document.getElementById('loading').classList.toggle('visible', v); if (v) { document.getElementById('dataTable').style.display = 'none'; document.getElementById('empty').classList.remove('visible'); } }
+  function showError(msg) { const el = document.getElementById('errorBanner'); el.textContent = msg; el.classList.add('visible'); }
+  function hideError() { document.getElementById('errorBanner').classList.remove('visible'); }
+  function showCacheBanner() { document.getElementById('cacheBanner').classList.add('visible'); }
+  function hideCacheBanner() { document.getElementById('cacheBanner').classList.remove('visible'); }
+
+  checkStatus();
+  setInterval(checkStatus, 10000);
+</script>
+</body>
+</html>
